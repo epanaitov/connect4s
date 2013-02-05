@@ -8,6 +8,15 @@ GET		/newroom					controllers.Application.newroom
 POST 	/newroom					controllers.Application.createroom
 
 GET		/game/:id						controllers.Application.game(id: Long)
+GET		/joingame/:id						controllers.Application.joinGame(id: Long)
+POST    /joingame/:id					controllers.Application.enterGame(id: Long)
+
+# The clock Comet stream
+GET     /clock/:id                      controllers.Application.liveClock(id: Long)
+
+GET 	/play/:id/:name						controllers.Application.playGame(id: Long, name: String)
+
+GET 	/move/:id/:col/:name				controllers.Application.doMove(id: Long, col: Long, name: String)
 
 # Map static resources from the /public folder to the /assets URL path
 GET     /assets/*file               controllers.Assets.at(path="/public", file)

@@ -1,8 +1,36 @@
-@(message: String)
+@(games: List[anorm.SqlRow])
+
+@playerOrJoin(player: Any, gameId: Any) = @{
+	player match {
+		case None => Html("<a href=\"/joingame/" + gameId + "\">Join</a>")
+		case Some(name) => name
+	}
+}
 
 @main("Connect4c") {
-    
-    @message
-    
-    <a href="/newroom">Create new room</a>
+	
+	<h1>Games</h1>
+	<table class="games">
+		<tr>
+			<th>#</th>
+			<th class="red">Red Player</th>
+			<th class="yellow">Yellow Player</th>
+			<th>Results</th>
+		</tr>
+
+	@for(g <- games; r = g.asMap) {
+		<tr>
+			<td>@r("game.id")</td>
+			<td class="red">
+				@(r("game.red_player") match {
+					case None => Html("<a href=\"/joingame/" + r("game.id") + "\">Join</a>")
+					case Some(name) => name
+				})
+			</td>
+			<td class="yellow">@playerOrJoin(r("game.yellow_player"), r("game.id"))</td>
+			<td></td>
+		</tr>
+	}
+	</table>
+  <a href="/newroom">Create new room</a>
 }

@@ -111,3 +111,21 @@ form dl{padding:10px 0;}
 dd.info{color:#888;font-size:12px;}
 dd.error{color:#c00;}
 aside a[href^="http"]:after,.doc a[href^="http"]:after{vertical-align:middle;margin-left:5px;}
+
+/** my stuff */
+table.games td {
+	padding: 5px;
+}
+
+table.games th {
+	padding: 5px;
+	font-weight: bold;
+}
+
+.red {background-color: red;}
+.yellow {background-color: yellow;}
+
+#board td {
+	padding: 10px;
+	border: 4px solid white;
+}
