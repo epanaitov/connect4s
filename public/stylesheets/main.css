@@ -113,6 +113,11 @@ dd.error{color:#c00;}
 aside a[href^="http"]:after,.doc a[href^="http"]:after{vertical-align:middle;margin-left:5px;}
 
 /** my stuff */
+
+body {
+	padding: 10px 0 0 10px;
+}
+
 table.games td {
 	padding: 5px;
 }
@@ -122,10 +127,47 @@ table.games th {
 	font-weight: bold;
 }
 
-.red {background-color: red;}
-.yellow {background-color: yellow;}
+.red {
+	background-color: red;
+	color: white;
+}
+
+.yellow {
+	background-color: yellow;
+	color: black;
+}
 
 #board td {
+	padding: 5px;	
+}
+
+#board td div {
+	height: 20px;
+	widht: 20px;
 	padding: 10px;
-	border: 4px solid white;
+	line-height: 20px;
+	font-size: 12px;
+	border: 1px solid #999999;
+	color: #EEEEEE;
+	-moz-border-radius: 20px;
+	border-radius: 20px;
+}
+
+#board td div.red {
+	border-color: red;
+}
+
+#board td div.yellow {
+	border-color: yellow;
+}
+
+#board th {
+	padding: 5px;
+}
+
+#board th a {
+	display: block;
+	text-align: center;
+	padding: 5px;
+	border: 1px solid black;
 }

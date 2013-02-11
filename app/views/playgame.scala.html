@@ -1,0 +1,83 @@
+@(id: Long, color: String)
+
+@main("Connect4c") {
+
+<script>
+	$(function() {
+            
+			var WS = window['MozWebSocket'] ? MozWebSocket : WebSocket
+      var gameSocket = new WS("ws://192.168.10.210:9000@routes.Application.gameSocket")
+            
+	    var sendMessage = function(sender) {
+	        gameSocket.send(JSON.stringify({
+	        		gameId: @id,
+	        		color: '@color',
+	        		column: $(sender).attr('id')
+	        }))
+	    }
+	    
+	    var refreshBoard = function() {
+	    		gameSocket.send(JSON.stringify({
+	        		gameId: @id,
+	        		color: '@color'
+	        }))
+	    }
+	    
+	    var receiveEvent = function(event) {
+	        var data = JSON.parse(event.data)
+	        
+	        // Handle errors
+	        if(data.error) {
+	            gameSocket.close()
+	            alert(data.error)
+	            return
+	        } else {
+	        
+	        		// clean the board
+	        		$('table#board tr td div').each(function(index) {
+	        			$(this).attr('class', '')
+	        		})
+	        
+	            for (var index in data) {
+	            	var move = data[index]
+	            	var color = move['color']
+	            	var column = move['column']
+	            	for (var row = 6; row > 0; row --) {
+	            		var cell = $('div#' + column + '-' + row)
+	            		if (cell.attr('class') == '') {
+	            			cell.attr('class', color)
+	            			break
+	            		}
+	            	}
+	            }
+	        }
+	    }
+	    
+	    gameSocket.onmessage = receiveEvent
+	    
+	    $('table#board tr th a').click(function(event) {
+	    	event.preventDefault()
+	    	sendMessage(this)
+	    });
+	    
+	    gameSocket.onopen = function(event) {
+	    	setInterval(refreshBoard, 300)
+	    }
+	})
+</script>
+	
+	<table id="board">
+		<tr id="actions">
+			@for(x <- 1 to 7) {
+				<th><a id="@x" href="#" class="@color">@x</a></th>
+			}	
+		</tr>
+		@for(y <- 1 to 6) {
+			<tr>
+				@for(x <- 1 to 7) {
+					<td><div id="@x-@y">@x:@y</div></td>
+				}
+			</tr>
+		} 
+	</table>
+}

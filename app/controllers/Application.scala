@@ -12,12 +12,12 @@ import scala.xml.NodeSeq
 import java.sql.Connection
 import play.api.libs.iteratee.Enumerator
 import play.api.libs.Comet
-
 import play.api.libs.{ Comet }
 import play.api.libs.iteratee._
 import play.api.libs.concurrent._
-
 import akka.util.duration._
+import play.api.libs.json._
+import anorm.SqlRow
 
 object Application extends Controller {
   
@@ -65,7 +65,8 @@ object Application extends Controller {
 		        
 		        Redirect("/game/" + gameId).withSession(
 		            "name" -> name,
-		            "gameId" -> gameId.toString
+		            "gameId" -> gameId.toString,
+		            "color" -> color
 		        )
 	        }
         }
@@ -73,17 +74,12 @@ object Application extends Controller {
     )
   }
   
-  def gameComet() = Action {
-	  val events = Enumerator("kiki", "foo", "bar")
-	  Ok.stream(events &> Comet(callback = "parent.cometMessage"))
-  }
-  
   def game(id: Long) = Action { implicit request =>
     
     session.get("gameId") match {
       case Some(gameId) => {
     	  if (!id.equals(gameId.toLong)) Redirect("/") 
-    	  else Ok(views.html.game(gameId.toLong, session.get("name").get))
+    	  else Ok(views.html.game(gameId.toLong, session.get("name").get, session.get("color").get))
       }
       case None => Redirect("/")
     } 
@@ -107,9 +103,7 @@ object Application extends Controller {
     }
   }
   
-  def enterGame(id: Long) = Action { implicit request =>
-    
-    DB.withConnection { implicit c =>
+  def enterGame(id: Long) = Action { implicit request => DB.withConnection { implicit c =>
         val room = SQL("select * from game where id = {id}").on("id" -> id).apply().head
     
 	    joinGameForm.bindFromRequest.fold(
@@ -119,11 +113,11 @@ object Application extends Controller {
 	            // TODO compare id with gameId
 	            
 	            val playerColor = room.asMap("game.red_player") match {
-	                case Some(_) => "yellow_player"
-	                case None => "red_player"
+	                case Some(_) => "yellow"
+	                case None => "red"
 	            }
 	            
-	            SQL("update game set " + playerColor + " = {playerName} where id = {id}")
+	            SQL("update game set " + playerColor + "_player = {playerName} where id = {id}")
 	            	.on(
 	            	    "playerName" -> name,
 	            	    "id" -> gameId
@@ -132,21 +126,19 @@ object Application extends Controller {
 	            	
 	            Redirect("/game/" + gameId).withSession(
 		            "name" -> name,
-		            "gameId" -> gameId.toString
+		            "gameId" -> gameId.toString,
+		            "color" -> playerColor
 		        )
 	          }
 	        }
 	    )
-	    
-	    
     
   	}
-    
   }
   
   def clock(gameId: Long): Enumerator[String] = {
     
-    val status: String = DB.withConnection { implicit c =>
+    def status: String = DB.withConnection { implicit c =>
     	val game = SQL("select * from game where id = {id}").on("id" -> gameId).apply().head
     	
     	Pair(game.asMap("game.red_player"), game.asMap("game.yellow_player")) match {
@@ -164,33 +156,15 @@ object Application extends Controller {
     Ok.stream(clock(id) &> Comet(callback = "parent.clockChanged"))
   }
   
-  def playGame(id: Long, name: String) = Action {
+  def playGame(id: Long, color: String) = Action {
     
     DB.withConnection { implicit c =>
       
-    	Ok(views.html.playgame(id, name, SQL("select color, colnum from move where game_id = {id} order by id asc").on("id" -> id).apply().toList))
+    	Ok(views.html.playgame(id, color))
     }
     
     
   }
-  
-  def doMove(id: Long, column: Long, name: String) = Action {
-    DB.withConnection { implicit c =>
-      
-      val color = getColorByName(id, name)
-      
-      SQL("insert into move(game_id, color, colnum) values ({id}, {color}, {colnum})")
-		.on(
-		    "id" -> id,
-		    "color" -> color,
-		    "colnum" -> column
-		).executeInsert().get
-		        
-	  Redirect("/play/" + id + "/" + name)
-      
-    }
-  }
-  
   
   def getColorByName(id: Long, name: String) = {
     DB.withConnection { implicit c =>
@@ -200,5 +174,53 @@ object Application extends Controller {
         case Some(redname) => if (redname.equals(name)) "red" else "yellow"
       }
     }
+  }
+  
+  def gameSocket = WebSocket.async[JsValue] { request =>
+    Akka.future {
+      val out = Enumerator.imperative[JsValue]()
+	  val in = Iteratee.foreach[JsValue]{ jsVal =>
+	    
+	    val gameId = (jsVal \ "gameId").as[Long]
+	    
+	    val color = (jsVal \ "color").as[String]
+	    val column = (jsVal \ "column").asOpt[String]
+	    
+	    DB.withConnection { implicit c =>
+	    	
+	      (column) match {
+	        case (Some(colnum)) => SQL("insert into move(game_id, color, colnum) values ({id}, {color}, {colnum})")
+				.on(
+				    "id" -> gameId,
+				    "color" -> color,
+				    "colnum" -> colnum
+				).executeInsert()
+				
+	        case (None) => println("board refresh from " + color)
+	      }
+				
+			val moves = SQL("select color, colnum from move where game_id = {id} order by id asc").on("id" -> gameId).apply().toList.map(row => {
+				  val color: String = anormField(row, "move.color").asInstanceOf[String]
+				  val column: Integer = anormField(row, "move.colnum").asInstanceOf[Integer]
+				  Json.toJson(Map(
+				      "color" -> Json.toJson(color),
+				      "column" -> Json.toJson(column.toLong)
+				      ))
+			    })
+			
+			out.push(Json.toJson(moves))
+	    }
+	    
+	  }
+	  
+	  (in, out)
+	}
+  }
+  
+  def anormField(row: SqlRow, field: String) = {
+	  val mapped = row.asMap
+	  mapped(field) match {
+	    case Some(value) => value
+	  }
   }
 }

@@ -1,0 +1,24 @@
+@(gameId: Long, name: String, color: String)
+
+@otherColor = @{
+	if(color.equals("red")) "yellow" 
+	else "red"
+}
+
+@main("Connect4s") {
+	
+	<h1>Waiting for @otherColor player</h1>
+    
+    <h1 id="clock"></h1>
+    
+    <script type="text/javascript" charset="utf-8">
+        // Called for each Comet message
+        var clockChanged = function(status) {
+            $('#clock').html(status)
+            if (status == 'Player joined') location.href = '/play/@(gameId)/@(color)'
+        }
+    </script>
+    
+    <iframe id="comet" src="@routes.Application.liveClock(gameId).unique"></iframe>
+		
+}
